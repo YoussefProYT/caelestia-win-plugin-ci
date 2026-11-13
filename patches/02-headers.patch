@@ -1,0 +1,91 @@
+diff --git a/plugin/src/Caelestia/Services/audiocollector.hpp b/plugin/src/Caelestia/Services/audiocollector.hpp
+index 10c69678..d51a72b5 100644
+--- a/plugin/src/Caelestia/Services/audiocollector.hpp
++++ b/plugin/src/Caelestia/Services/audiocollector.hpp
+@@ -3,8 +3,12 @@
+ #include <qmutex.h>
+ #include <qqmlintegration.h>
+ 
++#ifndef Q_OS_WIN
+ #include <pipewire/pipewire.h>
+ #include <spa/param/audio/format-utils.h>
++#else
++using pw_main_loop = void; using pw_stream = void; using spa_source = void;
++#endif
+ 
+ #include <atomic>
+ #include <stop_token>
+@@ -60,7 +64,13 @@ private:
+     AudioCollector* m_collector;
+ 
+     static void handleTimeout(void* data, uint64_t expirations);
+-    void streamStateChanged(pw_stream_state state);
++    void streamStateChanged(
++#ifndef Q_OS_WIN
++        pw_stream_state
++#else
++        int
++#endif
++        state);
+     void processStream();
+ };
+ 
+diff --git a/plugin/src/Caelestia/Services/beattracker.hpp b/plugin/src/Caelestia/Services/beattracker.hpp
+index dd7919b4..2ff54000 100644
+--- a/plugin/src/Caelestia/Services/beattracker.hpp
++++ b/plugin/src/Caelestia/Services/beattracker.hpp
+@@ -2,7 +2,11 @@
+ 
+ #include <qqmlintegration.h>
+ 
++#ifndef Q_OS_WIN
+ #include <aubio/aubio.h>
++#else
++using smpl_t = float; using aubio_tempo_t = void; struct fvec_t { float* data; };
++#endif
+ 
+ #include "audioprovider.hpp"
+ 
+diff --git a/plugin/src/Caelestia/Services/cavaprovider.hpp b/plugin/src/Caelestia/Services/cavaprovider.hpp
+index cb7a441c..e987501d 100644
+--- a/plugin/src/Caelestia/Services/cavaprovider.hpp
++++ b/plugin/src/Caelestia/Services/cavaprovider.hpp
+@@ -2,7 +2,11 @@
+ 
+ #include <qqmlintegration.h>
+ 
++#ifndef Q_OS_WIN
+ #include <cava/cavacore.h>
++#else
++struct cava_plan {};
++#endif
+ 
+ #include "audioprovider.hpp"
+ 
+diff --git a/plugin/src/Caelestia/Services/sessionmanager.hpp b/plugin/src/Caelestia/Services/sessionmanager.hpp
+index 40696142..25328677 100644
+--- a/plugin/src/Caelestia/Services/sessionmanager.hpp
++++ b/plugin/src/Caelestia/Services/sessionmanager.hpp
+@@ -1,6 +1,8 @@
+ #pragma once
+ 
++#ifndef Q_OS_WIN
+ #include <qdbusconnection.h>
++#endif
+ #include <qobject.h>
+ #include <qqmlintegration.h>
+ #include <qstring.h>
+@@ -40,11 +42,13 @@ private slots:
+     void handleUnlockRequested();
+ 
+ private:
++#ifndef Q_OS_WIN
+     [[nodiscard]] static std::optional<QDBusConnection> getSystemBus();
+     [[nodiscard]] static bool queryHibernateAvailable();
+     void call(const QString& path, const QString& iface, const QString& method, const QVariantList& args = {});
+     void callManager(const QString& method);
+     void callSession(const QString& method);
++#endif
+ 
+     QString m_sessionPath;
+ };

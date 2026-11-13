@@ -1,0 +1,130 @@
+name: Plugin build (Windows MSVC)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  plugin:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Checkout harness (patches)
+        uses: actions/checkout@v4
+      - name: Set up MSVC 2022 environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.8'
+      - name: Install Ninja
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check ninja==1.11.1.1
+          ninja --version
+      - name: Install Qt 6.11.2 (MSVC 2022 x64)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force out/logs | Out-Null
+          python -m pip install --disable-pip-version-check 'git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7' 2>&1 | Tee-Object out/logs/aqt-pip.log
+          if ($LASTEXITCODE -ne 0) { throw "pip install aqt failed" }
+          python -m aqt list-qt windows desktop --modules 6.11.2 win64_msvc2022_64 2>&1 | Tee-Object out/logs/qt-modules-available.log
+          $avail = ((Get-Content out/logs/qt-modules-available.log) -join ' ') -split '\s+'
+          $wanted = @('qtmultimedia','qt5compat','qtimageformats','qtpositioning')
+          $mods = @($wanted | Where-Object { $avail -contains $_ })
+          $skipped = @($wanted | Where-Object { $avail -notcontains $_ })
+          "Installing modules: $($mods -join ' ')" | Tee-Object -Append out/logs/qt-install.log
+          "Skipped (not listed): $($skipped -join ' ')" | Tee-Object -Append out/logs/qt-install.log
+          if ($mods.Count -gt 0) {
+            python -m aqt install-qt windows desktop 6.11.2 win64_msvc2022_64 -m @mods -O .toolchain/qt 2>&1 | Tee-Object -Append out/logs/qt-install.log
+          } else {
+            python -m aqt install-qt windows desktop 6.11.2 win64_msvc2022_64 -O .toolchain/qt 2>&1 | Tee-Object -Append out/logs/qt-install.log
+          }
+          if ($LASTEXITCODE -ne 0) { throw "aqt Qt install failed" }
+          $cfg = Get-ChildItem .toolchain/qt -Recurse -Filter Qt6Config.cmake | Select-Object -First 1
+          if (-not $cfg) { Get-ChildItem .toolchain/qt -Recurse -Depth 3 | Select-Object -First 80 FullName | Tee-Object out/logs/qt-tree.log; throw "Qt6Config.cmake not found" }
+          $prefix = (Resolve-Path (Join-Path $cfg.DirectoryName '../../..')).Path
+          "QT_PREFIX=$prefix" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "Qt prefix: $prefix" | Tee-Object -Append out/logs/qt-install.log
+          Get-ChildItem (Join-Path $prefix 'lib/cmake') -Directory | Select-Object -ExpandProperty Name | Tee-Object out/logs/qt-cmake-packages.log | Out-Null
+      - name: Fetch pinned Caelestia and apply patches
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $sha = 'fd630ffedd45eb31817e9a1726a0f567e79f65e2'
+          $log = 'out/logs/fetch-and-patch.log'
+          git init upstream/caelestia 2>&1 | Tee-Object -Append $log
+          git -C upstream/caelestia config core.autocrlf false
+          git -C upstream/caelestia remote add origin https://github.com/caelestia-dots/shell.git
+          git -C upstream/caelestia fetch --depth 1 origin $sha 2>&1 | Tee-Object -Append $log
+          git -C upstream/caelestia checkout --detach FETCH_HEAD 2>&1 | Tee-Object -Append $log
+          git -C upstream/caelestia submodule update --init --recursive 2>&1 | Tee-Object -Append $log
+          $head = (git -C upstream/caelestia rev-parse HEAD)
+          if ($head -ne $sha) { throw "Caelestia revision mismatch: $head" }
+          foreach ($p in '01-cmake','02-headers','03-windows-stubs') {
+            $f = (Resolve-Path "patches/$p.patch").Path
+            git -C upstream/caelestia apply --check --ignore-whitespace $f 2>&1 | Tee-Object -Append $log
+            if ($LASTEXITCODE -ne 0) { throw "patch $p does not apply" }
+            git -C upstream/caelestia apply --ignore-whitespace $f 2>&1 | Tee-Object -Append $log
+            if ($LASTEXITCODE -ne 0) { throw "patch $p failed" }
+            "applied $p" | Tee-Object -Append $log
+          }
+          git -C upstream/caelestia status --short 2>&1 | Tee-Object -Append $log
+      - name: Dump upstream build files and scan headers (diagnostics)
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force out/logs | Out-Null
+          $u = 'upstream/caelestia'
+          foreach ($f in 'CMakeLists.txt','plugin/cmake/qml-module.cmake','plugin/cmake/pch.cmake','plugin/src/Caelestia/CMakeLists.txt') {
+            "===== $f" | Add-Content out/logs/upstream-cmake-dump.txt
+            if (Test-Path "$u/$f") { Get-Content "$u/$f" | Add-Content out/logs/upstream-cmake-dump.txt } else { "(missing)" | Add-Content out/logs/upstream-cmake-dump.txt }
+          }
+          Get-ChildItem "$u/plugin" -Recurse -Include *.hpp,*.h,*.cpp | Select-String -Pattern '#\s*include\s*<(sys/|unistd|linux/|dbus|sensors/|pipewire|spa/|aubio|cava/|libqalculate|signal\.h|poll\.h|mntent)' | ForEach-Object { "$($_.Path):$($_.LineNumber): $($_.Line.Trim())" } | Out-File -Encoding utf8 out/logs/linux-includes-scan.txt
+      - name: Configure plugin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $src = (Resolve-Path upstream/caelestia).Path
+          $qt = $env:QT_PREFIX
+          # Attempt 1: upstream root project, plugin module only
+          cmake -S $src -B build/root -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$qt" -DENABLE_MODULES=plugin 2>&1 | Tee-Object out/logs/configure-root.log
+          if ($LASTEXITCODE -eq 0) { "BUILD_DIR=build/root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV; exit 0 }
+          # Attempt 2: wrapper project adding only the plugin directory
+          New-Item -ItemType Directory -Force ci/wrapper | Out-Null
+          $cm = @"
+          cmake_minimum_required(VERSION 3.19)
+          project(caelestia-plugin-win LANGUAGES CXX)
+          set(CMAKE_CXX_STANDARD 20)
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+          add_subdirectory("$($src -replace '\\','/')/plugin" plugin)
+          "@
+          $cm | Out-File -Encoding ascii ci/wrapper/CMakeLists.txt
+          cmake -S ci/wrapper -B build/wrapper -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$qt" 2>&1 | Tee-Object out/logs/configure-wrapper.log
+          if ($LASTEXITCODE -ne 0) { throw "Both configure attempts failed (see configure-root.log / configure-wrapper.log)" }
+          "BUILD_DIR=build/wrapper" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Build plugin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          cmake --build $env:BUILD_DIR 2>&1 | Tee-Object out/logs/build.log
+          if ($LASTEXITCODE -ne 0) { throw "Plugin build failed (see build.log)" }
+      - name: Collect QML module and dependency listing (L2)
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          if (-not $env:BUILD_DIR) { "no build dir" | Out-File out/logs/l2-skipped.txt; exit 0 }
+          if (Test-Path "$env:BUILD_DIR/qml") { Copy-Item "$env:BUILD_DIR/qml" out/qml -Recurse -Force }
+          Get-ChildItem out/qml -Recurse -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } | Out-File out/logs/qml-tree.txt
+          Get-ChildItem $env:BUILD_DIR -Recurse -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object { "===== $($_.FullName)"; dumpbin /dependents $_.FullName } | Out-File -Encoding utf8 out/logs/dll-dependents.txt
+      - name: Upload plugin and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caelestia-plugin-win
+          path: out/
+          if-no-files-found: warn

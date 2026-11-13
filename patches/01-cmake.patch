@@ -1,0 +1,140 @@
+diff --git a/plugin/CMakeLists.txt b/plugin/CMakeLists.txt
+index 6002d8b8..146f6bb3 100644
+--- a/plugin/CMakeLists.txt
++++ b/plugin/CMakeLists.txt
+@@ -1,13 +1,38 @@
+-find_package(Qt6 REQUIRED COMPONENTS ShaderTools Core Qml Gui Quick QuickControls2 Concurrent Sql Network DBus Multimedia)
+-find_package(PkgConfig REQUIRED)
+-pkg_check_modules(Qalculate IMPORTED_TARGET libqalculate REQUIRED)
+-pkg_check_modules(Pipewire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
+-pkg_check_modules(Aubio IMPORTED_TARGET aubio REQUIRED)
+-pkg_check_modules(Cava IMPORTED_TARGET libcava QUIET)
+-if(NOT Cava_FOUND)
+-    pkg_check_modules(Cava IMPORTED_TARGET cava REQUIRED)
++find_package(Qt6 REQUIRED COMPONENTS ShaderTools Core Qml Gui Quick QuickControls2 Concurrent Sql Network Multimedia)
++if(NOT WIN32)
++    find_package(Qt6 REQUIRED COMPONENTS DBus)
++    find_package(PkgConfig REQUIRED)
++endif()
++
++if(WIN32)
++    set(CAELESTIA_NATIVE_DEFAULT OFF)
++else()
++    set(CAELESTIA_NATIVE_DEFAULT ON)
++endif()
++option(CAELESTIA_WITH_QALCULATE "Build the libqalculate-backed evaluator" ${CAELESTIA_NATIVE_DEFAULT})
++option(CAELESTIA_WITH_PIPEWIRE "Build the PipeWire audio collector" ${CAELESTIA_NATIVE_DEFAULT})
++option(CAELESTIA_WITH_AUBIO "Build the aubio beat tracker" ${CAELESTIA_NATIVE_DEFAULT})
++option(CAELESTIA_WITH_CAVA "Build the Cava visualiser" ${CAELESTIA_NATIVE_DEFAULT})
++option(CAELESTIA_WITH_SENSORS "Build the libsensors integration" ${CAELESTIA_NATIVE_DEFAULT})
++
++if(CAELESTIA_WITH_QALCULATE)
++    pkg_check_modules(Qalculate IMPORTED_TARGET libqalculate REQUIRED)
++endif()
++if(CAELESTIA_WITH_PIPEWIRE)
++    pkg_check_modules(Pipewire IMPORTED_TARGET libpipewire-0.3 REQUIRED)
++endif()
++if(CAELESTIA_WITH_AUBIO)
++    pkg_check_modules(Aubio IMPORTED_TARGET aubio REQUIRED)
++endif()
++if(CAELESTIA_WITH_CAVA)
++    pkg_check_modules(Cava IMPORTED_TARGET libcava QUIET)
++    if(NOT Cava_FOUND)
++        pkg_check_modules(Cava IMPORTED_TARGET cava REQUIRED)
++    endif()
++endif()
++if(CAELESTIA_WITH_SENSORS)
++    include(cmake/sensorslib.cmake)
+ endif()
+-include(cmake/sensorslib.cmake)
+ 
+ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
+ qt_standard_project_setup(REQUIRES 6.9)
+diff --git a/plugin/src/Caelestia/CMakeLists.txt b/plugin/src/Caelestia/CMakeLists.txt
+index 53b9d4ff..8e7c8da3 100644
+--- a/plugin/src/Caelestia/CMakeLists.txt
++++ b/plugin/src/Caelestia/CMakeLists.txt
+@@ -3,7 +3,8 @@ qml_module(caelestia-core
+     INCLUDE_PREFIX core
+     SOURCES
+         cutils.cpp
+-        qalculator.cpp
++        $<$<BOOL:${CAELESTIA_WITH_QALCULATE}>:qalculator.cpp>
++        $<$<NOT:$<BOOL:${CAELESTIA_WITH_QALCULATE}>>:windows/qalculator.cpp>
+         requests.cpp
+         toaster.cpp
+         circularbuffer.cpp
+@@ -11,7 +12,7 @@ qml_module(caelestia-core
+         Qt::Gui
+         Qt::Quick
+         Qt::Concurrent
+-        PkgConfig::Qalculate
++        $<$<BOOL:${CAELESTIA_WITH_QALCULATE}>:PkgConfig::Qalculate>
+ )
+ target_link_libraries(caelestia-core PUBLIC caelestia-util)
+ 
+diff --git a/plugin/src/Caelestia/Services/CMakeLists.txt b/plugin/src/Caelestia/Services/CMakeLists.txt
+index 8401cbae..92b356f6 100644
+--- a/plugin/src/Caelestia/Services/CMakeLists.txt
++++ b/plugin/src/Caelestia/Services/CMakeLists.txt
+@@ -3,31 +3,43 @@ qml_module(caelestia-services
+     SOURCES
+         service.cpp
+         serviceref.cpp
+-        beattracker.cpp
+-        audiocollector.cpp
++        $<$<BOOL:${CAELESTIA_WITH_AUBIO}>:beattracker.cpp>
++        $<$<NOT:$<BOOL:${CAELESTIA_WITH_AUBIO}>>:windows/beattracker.cpp>
++        $<$<BOOL:${CAELESTIA_WITH_PIPEWIRE}>:audiocollector.cpp>
++        $<$<NOT:$<BOOL:${CAELESTIA_WITH_PIPEWIRE}>>:windows/audiocollector.cpp>
+         audioprovider.cpp
+-        cavaprovider.cpp
++        $<$<BOOL:${CAELESTIA_WITH_CAVA}>:cavaprovider.cpp>
++        $<$<NOT:$<BOOL:${CAELESTIA_WITH_CAVA}>>:windows/cavaprovider.cpp>
+         tickingservice.cpp
+-        sensorslib.cpp
+-        cpu.cpp
+-        gpu.cpp
+-        memory.cpp
++        $<$<BOOL:${CAELESTIA_WITH_SENSORS}>:sensorslib.cpp>
++        $<$<NOT:$<BOOL:${CAELESTIA_WITH_SENSORS}>>:windows/sensorslib.cpp>
++        $<$<NOT:$<BOOL:${WIN32}>>:cpu.cpp>
++        $<$<BOOL:${WIN32}>:windows/cpu.cpp>
++        $<$<NOT:$<BOOL:${WIN32}>>:gpu.cpp>
++        $<$<BOOL:${WIN32}>:windows/gpu.cpp>
++        $<$<NOT:$<BOOL:${WIN32}>>:memory.cpp>
++        $<$<BOOL:${WIN32}>:windows/memory.cpp>
+         diskinfo.cpp
+-        storage.cpp
++        $<$<NOT:$<BOOL:${WIN32}>>:storage.cpp>
++        $<$<BOOL:${WIN32}>:windows/storage.cpp>
+         lyriccandidate.cpp
+         lyrics.cpp
+-        sessionmanager.cpp
+-        networkusage.cpp
+-        hyprdevices.cpp
+-        hyprextras.cpp
++        $<$<NOT:$<BOOL:${WIN32}>>:sessionmanager.cpp>
++        $<$<BOOL:${WIN32}>:windows/sessionmanager.cpp>
++        $<$<NOT:$<BOOL:${WIN32}>>:networkusage.cpp>
++        $<$<BOOL:${WIN32}>:windows/networkusage.cpp>
++        $<$<NOT:$<BOOL:${WIN32}>>:hyprdevices.cpp>
++        $<$<BOOL:${WIN32}>:windows/hyprdevices.cpp>
++        $<$<NOT:$<BOOL:${WIN32}>>:hyprextras.cpp>
++        $<$<BOOL:${WIN32}>:windows/hyprextras.cpp>
+     LIBRARIES
+         Qt::Concurrent
+-        Qt::DBus
+         Qt::Network
+-        PkgConfig::Pipewire
+-        PkgConfig::Aubio
+-        PkgConfig::Cava
+-        Sensors::Sensors
++        $<$<NOT:$<BOOL:${WIN32}>>:Qt::DBus>
++        $<$<BOOL:${CAELESTIA_WITH_PIPEWIRE}>:PkgConfig::Pipewire>
++        $<$<BOOL:${CAELESTIA_WITH_AUBIO}>:PkgConfig::Aubio>
++        $<$<BOOL:${CAELESTIA_WITH_CAVA}>:PkgConfig::Cava>
++        $<$<BOOL:${CAELESTIA_WITH_SENSORS}>:Sensors::Sensors>
+         caelestia-util
+         caelestia-core
+         caelestia-config

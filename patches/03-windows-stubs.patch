@@ -1,0 +1,294 @@
+diff --git a/plugin/src/Caelestia/Services/windows/audiocollector.cpp b/plugin/src/Caelestia/Services/windows/audiocollector.cpp
+new file mode 100644
+index 00000000..8e8a826a
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/audiocollector.cpp
+@@ -0,0 +1,20 @@
++#include "../audiocollector.hpp"
++
++namespace caelestia::shell::services {
++AudioCollector& AudioCollector::instance() { static AudioCollector instance; return instance; }
++AudioCollector::AudioCollector(QObject* parent) : Service(parent), m_samples(4096), m_pending(4096), m_discardPending(false), m_sampleCount(0) {}
++AudioCollector::~AudioCollector() = default;
++void AudioCollector::clearBuffer() { m_samples.clear(); m_pending.clear(); m_sampleCount = 0; }
++void AudioCollector::loadChunk(const qint16*, quint32) {}
++template <typename T> quint32 AudioCollector::readLatest(T*, quint32) { return 0; }
++quint32 AudioCollector::readChunk(float* out, quint32 count) { Q_UNUSED(out); Q_UNUSED(count); return 0; }
++quint32 AudioCollector::readChunk(double* out, quint32 count) { Q_UNUSED(out); Q_UNUSED(count); return 0; }
++void AudioCollector::reload() {}
++void AudioCollector::start() {}
++void AudioCollector::stop() {}
++PipeWireWorker::PipeWireWorker(std::stop_token token, AudioCollector* collector) : m_token(token), m_collector(collector) {}
++void PipeWireWorker::run() {}
++void PipeWireWorker::handleTimeout(void*, uint64_t) {}
++void PipeWireWorker::streamStateChanged(int) {}
++void PipeWireWorker::processStream() {}
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/beattracker.cpp b/plugin/src/Caelestia/Services/windows/beattracker.cpp
+new file mode 100644
+index 00000000..f9f68c64
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/beattracker.cpp
+@@ -0,0 +1,10 @@
++#include "../beattracker.hpp"
++
++namespace caelestia::shell::services {
++BeatProcessor::BeatProcessor(QObject* parent) : AudioProcessor(parent), m_tempo(nullptr), m_in(nullptr), m_out(nullptr) {}
++BeatProcessor::~BeatProcessor() = default;
++void BeatProcessor::process() {}
++BeatTracker::BeatTracker(QObject* parent) : AudioProvider(parent), m_bpm(0) { m_processor = new BeatProcessor(); init(); }
++smpl_t BeatTracker::bpm() const { return m_bpm; }
++void BeatTracker::updateBpm(smpl_t bpm) { if (m_bpm != bpm) { m_bpm = bpm; emit bpmChanged(); } }
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/cavaprovider.cpp b/plugin/src/Caelestia/Services/windows/cavaprovider.cpp
+new file mode 100644
+index 00000000..c916fa01
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/cavaprovider.cpp
+@@ -0,0 +1,16 @@
++#include "../cavaprovider.hpp"
++
++namespace caelestia::shell::services {
++CavaProcessor::CavaProcessor(QObject* parent) : AudioProcessor(parent), m_plan(nullptr), m_in(nullptr), m_out(nullptr), m_bars(0) {}
++CavaProcessor::~CavaProcessor() = default;
++void CavaProcessor::process() { if (m_bars > 0) emit valuesChanged(QVector<double>(m_bars, 0.0)); }
++void CavaProcessor::setBars(int bars) { m_bars = std::max(0, bars); }
++void CavaProcessor::reload() {}
++void CavaProcessor::cleanup() {}
++void CavaProcessor::initCava() {}
++CavaProvider::CavaProvider(QObject* parent) : AudioProvider(parent), m_bars(0) { m_processor = new CavaProcessor(); init(); connect(static_cast<CavaProcessor*>(m_processor), &CavaProcessor::valuesChanged, this, &CavaProvider::updateValues); }
++int CavaProvider::bars() const { return m_bars; }
++void CavaProvider::setBars(int bars) { bars = std::max(0, bars); if (m_bars == bars) return; m_bars = bars; m_values.fill(0.0, bars); emit barsChanged(); emit valuesChanged(); }
++QVector<double> CavaProvider::values() const { return m_values; }
++void CavaProvider::updateValues(const QVector<double>& values) { if (m_values != values) { m_values = values; emit valuesChanged(); } }
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/cpu.cpp b/plugin/src/Caelestia/Services/windows/cpu.cpp
+new file mode 100644
+index 00000000..d236db49
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/cpu.cpp
+@@ -0,0 +1,13 @@
++#include "../cpu.hpp"
++
++namespace caelestia::shell::services {
++Cpu::Cpu(QObject* parent) : TickingService(parent), m_name(u"N/A") {}
++QString Cpu::name() const { return m_name; }
++qreal Cpu::percentage() const { return m_percentage; }
++qreal Cpu::temperature() const { return m_temperature; }
++void Cpu::tick() {}
++void Cpu::readNameOnce() {}
++void Cpu::refreshPercentage() {}
++void Cpu::refreshTemperature() {}
++QString Cpu::cleanName(QString s) { return s; }
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/gpu.cpp b/plugin/src/Caelestia/Services/windows/gpu.cpp
+new file mode 100644
+index 00000000..b3d913ef
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/gpu.cpp
+@@ -0,0 +1,23 @@
++#include "../gpu.hpp"
++
++namespace caelestia::shell::services {
++Gpu::Gpu(QObject* parent) : TickingService(parent) {}
++GpuType Gpu::type() const { return m_type; }
++QString Gpu::name() const { return u"N/A"; }
++bool Gpu::detecting() const { return false; }
++qreal Gpu::percentage() const { return 0.0; }
++qreal Gpu::temperature() const { return 0.0; }
++void Gpu::tick() {}
++void Gpu::resolveGpu() {}
++int Gpu::probeEnd() const { return 0; }
++void Gpu::tryNameSource(int, int) {}
++void Gpu::finishNameSource(int, int, QString) {}
++void Gpu::readGenericUsage() {}
++void Gpu::startNvidiaUsage() {}
++void Gpu::readGpuTemperature() {}
++void Gpu::resetUsage() {}
++void Gpu::runProcess(const QString&, const QStringList&, std::function<void(const QByteArray&)>) {}
++void Gpu::setType(GpuType value) { if (m_type != value) { m_type = value; emit typeChanged(); } }
++void Gpu::setName(QString) {}
++void Gpu::setDetecting(bool) {}
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/hyprdevices.cpp b/plugin/src/Caelestia/Services/windows/hyprdevices.cpp
+new file mode 100644
+index 00000000..682fa5d5
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/hyprdevices.cpp
+@@ -0,0 +1,17 @@
++#include "../hyprdevices.hpp"
++
++namespace caelestia::shell::services::hypr {
++HyprKeyboard::HyprKeyboard(QJsonObject ipcObject, QObject* parent) : QObject(parent), m_lastIpcObject(std::move(ipcObject)) {}
++QVariantHash HyprKeyboard::lastIpcObject() const { return m_lastIpcObject.toVariantHash(); }
++QString HyprKeyboard::address() const { return {}; }
++QString HyprKeyboard::name() const { return {}; }
++QString HyprKeyboard::layout() const { return {}; }
++QString HyprKeyboard::activeKeymap() const { return {}; }
++bool HyprKeyboard::capsLock() const { return false; }
++bool HyprKeyboard::numLock() const { return false; }
++bool HyprKeyboard::main() const { return false; }
++bool HyprKeyboard::updateLastIpcObject(const QJsonObject&) { return false; }
++HyprDevices::HyprDevices(QObject* parent) : QObject(parent) {}
++QQmlListProperty<HyprKeyboard> HyprDevices::keyboards() { return {this, &m_keyboards}; }
++bool HyprDevices::updateLastIpcObject(const QJsonObject&) { return false; }
++} // namespace caelestia::shell::services::hypr
+diff --git a/plugin/src/Caelestia/Services/windows/hyprextras.cpp b/plugin/src/Caelestia/Services/windows/hyprextras.cpp
+new file mode 100644
+index 00000000..23d51515
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/hyprextras.cpp
+@@ -0,0 +1,19 @@
++#include "../hyprextras.hpp"
++#include "../hyprdevices.hpp"
++
++namespace caelestia::shell::services::hypr {
++HyprExtras::HyprExtras(QObject* parent) : QObject(parent), m_socket(nullptr), m_socketValid(false), m_devices(new HyprDevices(this)) {}
++QVariantHash HyprExtras::options() const { return m_options; }
++HyprDevices* HyprExtras::devices() const { return m_devices; }
++void HyprExtras::message(const QString&) {}
++void HyprExtras::batchMessage(const QStringList&) {}
++void HyprExtras::applyOptions(const QVariantHash&) {}
++void HyprExtras::refreshOptions() {}
++void HyprExtras::refreshDevices() {}
++void HyprExtras::socketError(QLocalSocket::LocalSocketError) const {}
++void HyprExtras::socketStateChanged(QLocalSocket::LocalSocketState) {}
++void HyprExtras::readEvent() {}
++void HyprExtras::handleEvent(const QString&) {}
++HyprExtras::SocketPtr HyprExtras::makeRequestJson(const QString&, const std::function<void(bool, QJsonDocument)>&) { return {}; }
++HyprExtras::SocketPtr HyprExtras::makeRequest(const QString&, const std::function<void(bool, QByteArray)>&) { return {}; }
++} // namespace caelestia::shell::services::hypr
+diff --git a/plugin/src/Caelestia/Services/windows/memory.cpp b/plugin/src/Caelestia/Services/windows/memory.cpp
+new file mode 100644
+index 00000000..946219af
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/memory.cpp
+@@ -0,0 +1,9 @@
++#include "../memory.hpp"
++
++namespace caelestia::shell::services {
++Memory::Memory(QObject* parent) : TickingService(parent) {}
++qreal Memory::used() const { return m_used; }
++qreal Memory::total() const { return m_total; }
++qreal Memory::percentage() const { return m_percentage; }
++void Memory::tick() {}
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/networkusage.cpp b/plugin/src/Caelestia/Services/windows/networkusage.cpp
+new file mode 100644
+index 00000000..67c07d53
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/networkusage.cpp
+@@ -0,0 +1,17 @@
++#include "../networkusage.hpp"
++#include "../../circularbuffer.hpp"
++
++namespace caelestia::shell::services {
++NetworkUsage::NetworkUsage(QObject* parent) : TickingService(parent), m_downloadBuffer(new CircularBuffer(this)), m_uploadBuffer(new CircularBuffer(this)) {
++    m_downloadBuffer->setCapacity(m_historyLength);
++    m_uploadBuffer->setCapacity(m_historyLength);
++}
++qreal NetworkUsage::downloadSpeed() const { return m_downloadSpeed; }
++qreal NetworkUsage::uploadSpeed() const { return m_uploadSpeed; }
++qreal NetworkUsage::downloadTotal() const { return m_downloadTotal; }
++qreal NetworkUsage::uploadTotal() const { return m_uploadTotal; }
++int NetworkUsage::historyLength() const { return m_historyLength; }
++CircularBuffer* NetworkUsage::downloadBuffer() const { return m_downloadBuffer; }
++CircularBuffer* NetworkUsage::uploadBuffer() const { return m_uploadBuffer; }
++void NetworkUsage::tick() {}
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/sensorslib.cpp b/plugin/src/Caelestia/Services/windows/sensorslib.cpp
+new file mode 100644
+index 00000000..28ef065c
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/sensorslib.cpp
+@@ -0,0 +1,7 @@
++#include "../sensorslib.hpp"
++
++namespace caelestia::shell::services::sensorslib {
++void ensureInit() {}
++std::optional<double> cpuPackageTemp() { return std::nullopt; }
++std::optional<double> gpuPciAverageTemp() { return std::nullopt; }
++} // namespace caelestia::shell::services::sensorslib
+diff --git a/plugin/src/Caelestia/Services/windows/sessionmanager.cpp b/plugin/src/Caelestia/Services/windows/sessionmanager.cpp
+new file mode 100644
+index 00000000..23580a2a
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/sessionmanager.cpp
+@@ -0,0 +1,31 @@
++#include "../sessionmanager.hpp"
++#include <qloggingcategory.h>
++
++namespace {
++Q_LOGGING_CATEGORY(lcSessionManager, "caelestia.services.sessionmanager", QtInfoMsg)
++bool powerAllowed() { return qEnvironmentVariableIntValue("CAELESTIA_WIN_ALLOW_POWER") == 1; }
++void logAction(const char* action) { qCInfo(lcSessionManager) << "Windows session action requested:" << action << "allowed:" << powerAllowed() << "(no action is executed by this port stub)"; }
++}
++namespace caelestia::shell::services {
++SessionManager::SessionManager(QObject* parent) : QObject(parent) {}
++bool SessionManager::exec(const QStringList& command) {
++    if (command.isEmpty()) return false;
++    const auto cmd = command.constFirst().toLower().remove(u'-').remove(u'_');
++    if (cmd == u"logout") { logout(); return true; }
++    if (cmd == u"suspend") { suspend(); return true; }
++    if (cmd == u"suspendthenhibernate") { suspendThenHibernate(); return true; }
++    if (cmd == u"hibernate") { hibernate(); return true; }
++    if (cmd == u"poweroff") { poweroff(); return true; }
++    if (cmd == u"reboot") { reboot(); return true; }
++    return false;
++}
++void SessionManager::logout() { logAction("logout"); }
++void SessionManager::suspend() { logAction("suspend"); }
++void SessionManager::suspendThenHibernate() { logAction("suspendThenHibernate"); }
++void SessionManager::hibernate() { logAction("hibernate"); }
++void SessionManager::poweroff() { logAction("poweroff"); }
++void SessionManager::reboot() { logAction("reboot"); }
++void SessionManager::handlePrepareForSleep(bool sleep) { if (sleep) emit aboutToSleep(); else emit resumed(); }
++void SessionManager::handleLockRequested() { emit lockRequested(); }
++void SessionManager::handleUnlockRequested() { emit unlockRequested(); }
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/Services/windows/storage.cpp b/plugin/src/Caelestia/Services/windows/storage.cpp
+new file mode 100644
+index 00000000..6ca1af8d
+--- /dev/null
++++ b/plugin/src/Caelestia/Services/windows/storage.cpp
+@@ -0,0 +1,19 @@
++#include "../storage.hpp"
++
++namespace caelestia::shell::services {
++Storage::Storage(QObject* parent) : TickingService(parent), m_futureWatcher(new QFutureWatcher<AccumHash>(this)) {}
++qreal Storage::percentage() const { return 0.0; }
++QQmlListProperty<DiskInfo> Storage::disksProp() { return {this, nullptr, &Storage::disksCount, &Storage::disksAt}; }
++DiskInfo* Storage::manualPrimaryDisk() const { return m_manualPrimaryDisk.data(); }
++void Storage::setManualPrimaryDisk(DiskInfo* disk) { if (m_manualPrimaryDisk.data() != disk) { m_manualPrimaryDisk = disk; emit manualPrimaryDiskChanged(); emit primaryDiskChanged(); } }
++DiskInfo* Storage::primaryDisk() const { return m_manualPrimaryDisk.data(); }
++void Storage::tick() {}
++QHash<QByteArray, Storage::DeviceEntry> Storage::collectDevices() { return {}; }
++Storage::AccumHash Storage::foldToDisks(const QHash<QByteArray, DeviceEntry>&) { return {}; }
++void Storage::applyDisks(const AccumHash&) {}
++QStringList Storage::resolveToPhysicalDisks(const QString&) { return {}; }
++bool Storage::isPseudoFs(QByteArrayView) { return false; }
++bool Storage::sameOrder(const QList<DiskInfo*>& a, const QList<DiskInfo*>& b) { return a == b; }
++qsizetype Storage::disksCount(QQmlListProperty<DiskInfo>* prop) { return static_cast<Storage*>(prop->object)->m_disks.size(); }
++DiskInfo* Storage::disksAt(QQmlListProperty<DiskInfo>* prop, qsizetype i) { auto* self = static_cast<Storage*>(prop->object); return self->m_disks.at(i); }
++} // namespace caelestia::shell::services
+diff --git a/plugin/src/Caelestia/windows/qalculator.cpp b/plugin/src/Caelestia/windows/qalculator.cpp
+new file mode 100644
+index 00000000..2974ac3a
+--- /dev/null
++++ b/plugin/src/Caelestia/windows/qalculator.cpp
+@@ -0,0 +1,15 @@
++#include "../qalculator.hpp"
++
++namespace caelestia::shell {
++QMutex Qalculator::s_calculatorMutex;
++Qalculator::Qalculator(QObject* parent) : QObject(parent) {}
++QString Qalculator::eval(const QString&, bool) { return u"N/A"; }
++void Qalculator::evalAsync(const QString&) { clearResult(); }
++QString Qalculator::result() const { return m_result; }
++QString Qalculator::rawResult() const { return m_rawResult; }
++bool Qalculator::busy() const { return m_busy; }
++QPair<QString, QString> Qalculator::evaluate(const QString&) { return {u"N/A", u"N/A"}; }
++void Qalculator::applyResult(quint64, const QPair<QString, QString>& result) { m_result = result.first; m_rawResult = result.second; emit resultChanged(); emit rawResultChanged(); }
++void Qalculator::clearResult() { applyResult(++m_generation, {u"N/A", u"N/A"}); }
++void Qalculator::setBusy(bool busy) { if (m_busy != busy) { m_busy = busy; emit busyChanged(); } }
++} // namespace caelestia::shell
