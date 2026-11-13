@@ -13,4 +13,4 @@
   ```
 
 - Fix: install the available `qtshadertools` module and pass explicit `VERSION=0.1.0` plus the pinned `GIT_REVISION` to the root configure command.
-- Commit: pending
+- Commit: 337ba9867f6698faa84aeb9dfaf511a8436f8f18
