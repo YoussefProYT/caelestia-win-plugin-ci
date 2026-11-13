@@ -32,7 +32,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "pip install aqt failed" }
           python -m aqt list-qt windows desktop --modules 6.11.2 win64_msvc2022_64 2>&1 | Tee-Object out/logs/qt-modules-available.log
           $avail = ((Get-Content out/logs/qt-modules-available.log) -join ' ') -split '\s+'
-          $wanted = @('qtmultimedia','qt5compat','qtimageformats','qtpositioning')
+          $wanted = @('qtmultimedia','qt5compat','qtimageformats','qtpositioning','qtshadertools')
           $mods = @($wanted | Where-Object { $avail -contains $_ })
           $skipped = @($wanted | Where-Object { $avail -notcontains $_ })
           "Installing modules: $($mods -join ' ')" | Tee-Object -Append out/logs/qt-install.log
@@ -91,7 +91,7 @@ jobs:
           $src = (Resolve-Path upstream/caelestia).Path
           $qt = $env:QT_PREFIX
           # Attempt 1: upstream root project, plugin module only
-          cmake -S $src -B build/root -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$qt" -DENABLE_MODULES=plugin 2>&1 | Tee-Object out/logs/configure-root.log
+          cmake -S $src -B build/root -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$qt" -DENABLE_MODULES=plugin -DVERSION=0.1.0 -DGIT_REVISION=$sha 2>&1 | Tee-Object out/logs/configure-root.log
           if ($LASTEXITCODE -eq 0) { "BUILD_DIR=build/root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV; exit 0 }
           # Attempt 2: wrapper project adding only the plugin directory
           New-Item -ItemType Directory -Force ci/wrapper | Out-Null
