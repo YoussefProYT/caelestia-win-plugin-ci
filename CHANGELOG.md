@@ -27,4 +27,4 @@
   ```
 
 - Fix: add `04-cmake-msvc.patch`, keeping the existing GCC warning flags for non-MSVC compilers and using `/W4` for MSVC. Update the workflow to apply patch 04.
-- Commit: pending
+- Commit: 27ef73c873776584fd4810190614256f137ce06b
