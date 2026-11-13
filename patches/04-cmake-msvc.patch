@@ -1,0 +1,29 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 05d35317..7e4db48b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -47,13 +47,17 @@ add_compile_definitions(
+     QT_NO_CAST_FROM_BYTEARRAY
+ )
+ 
+-add_compile_options(
+-    -Wall -Wextra -Wpedantic -Wshadow -Wconversion
+-    -Wold-style-cast -Wnull-dereference -Wdouble-promotion
+-    -Wformat=2 -Wfloat-equal -Woverloaded-virtual
+-    -Wsign-conversion -Wredundant-decls -Wswitch
+-    -Wunreachable-code
+-)
++if(MSVC)
++    add_compile_options(/W4)
++else()
++    add_compile_options(
++        -Wall -Wextra -Wpedantic -Wshadow -Wconversion
++        -Wold-style-cast -Wnull-dereference -Wdouble-promotion
++        -Wformat=2 -Wfloat-equal -Woverloaded-virtual
++        -Wsign-conversion -Wredundant-decls -Wswitch
++        -Wunreachable-code
++    )
++endif()
+ 
+ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+     add_compile_options(-Wunused-lambda-capture -Wno-nonportable-include-path)
