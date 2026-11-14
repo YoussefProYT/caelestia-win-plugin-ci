@@ -92,7 +92,7 @@ index 00000000..b3d913ef
 +namespace caelestia::shell::services {
 +Gpu::Gpu(QObject* parent) : TickingService(parent) {}
 +GpuType Gpu::type() const { return m_type; }
-+QString Gpu::name() const { return u"N/A"; }
++QString Gpu::name() const { return QStringLiteral("N/A"); }
 +bool Gpu::detecting() const { return false; }
 +qreal Gpu::percentage() const { return 0.0; }
 +qreal Gpu::temperature() const { return 0.0; }
@@ -170,7 +170,7 @@ index 00000000..946219af
 +Memory::Memory(QObject* parent) : TickingService(parent) {}
 +qreal Memory::used() const { return m_used; }
 +qreal Memory::total() const { return m_total; }
-+qreal Memory::percentage() const { return m_percentage; }
++qreal Memory::percentage() const { return m_total > 0 ? m_used / m_total : 0.0; }
 +void Memory::tick() {}
 +} // namespace caelestia::shell::services
 diff --git a/plugin/src/Caelestia/Services/windows/networkusage.cpp b/plugin/src/Caelestia/Services/windows/networkusage.cpp
@@ -178,9 +178,8 @@ new file mode 100644
 index 00000000..67c07d53
 --- /dev/null
 +++ b/plugin/src/Caelestia/Services/windows/networkusage.cpp
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,16 @@
 +#include "../networkusage.hpp"
-+#include "../../circularbuffer.hpp"
 +
 +namespace caelestia::shell::services {
 +NetworkUsage::NetworkUsage(QObject* parent) : TickingService(parent), m_downloadBuffer(new CircularBuffer(this)), m_uploadBuffer(new CircularBuffer(this)) {

@@ -76,7 +76,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          python tools/gen_exports.py upstream/caelestia 2>&1 | Tee-Object out/logs/gen-exports.log
+          python tools/gen_exports.py upstream/caelestia out/logs/gen-exports-report.txt 2>&1 | Tee-Object out/logs/gen-exports.log
           if ($LASTEXITCODE -ne 0) { throw "gen_exports.py failed (see gen-exports.log)" }
           git -C upstream/caelestia diff --stat 2>&1 | Tee-Object -Append out/logs/gen-exports.log
       - name: Dump upstream build files and scan headers (diagnostics)

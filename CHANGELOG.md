@@ -85,3 +85,11 @@
 - Reason: WINDOWS_EXPORT_ALL_SYMBOLS (patch 06) most likely cannot export data symbols such as `staticMetaObject`, which the round-5 link errors include. Patch 06 is moved to `patches/unused/`.
 - Change: new CI step runs `tools/gen_exports.py` after patching. It generates `plugin/include/caelestia_export.h` with per-library `CAELESTIA_<NAME>_API` macros, marks top-level class/struct definitions in each library's headers, and defines `CAELESTIA_BUILD_<NAME>` for each shared `caelestia-*` target. Build now uses `-- -k 0` to list all errors in one run.
 - Status: untested; expect follow-up rounds (e.g. non-copyable exported types, macro-generated classes not matched by the script).
+
+## Round 6 result (Windows CI, export macros via tools/gen_exports.py)
+
+- Result: the round-5 link errors are gone. caelestia-core, settings, models, components, state, blobs, images, config and multimedia (and most plugin DLLs) now link.
+- Remaining compile errors (3, all in the Windows stubs): `memory.cpp` (no `m_percentage` member), `gpu.cpp` (`u"N/A"` char16_t -> QString), `networkusage.cpp` (CircularBuffer redefined: header reached via two include paths).
+- Remaining link errors (2 libs, same cause): caelestia-i18n and caelestia-shaders miss `config::FontConfig*::staticMetaObject`, `config::FontStyle*::staticMetaObject`, `ConfigSingleton::instance`, `TokensSingleton::instance`. These types are not marked by the script (probably macro-generated in Config headers).
+- Fixes in round 7: stubs fixed in patch 03; gen_exports.py now also marks the first class/struct inside `#define` bodies and writes `out/logs/gen-exports-report.txt` (unmarked class-like lines, macro definitions containing class/struct, lines mentioning the failing names).
+- Note: `spirv-opt` is not installed, so qsb prints "Failed to run spirv-opt" and shaders are built unoptimised. Not fatal.

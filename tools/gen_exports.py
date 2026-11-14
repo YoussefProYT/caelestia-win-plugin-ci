@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Add Windows DLL export/import macros to Caelestia's plugin headers (CI-time, not a patch).
 
-Usage: python tools/gen_exports.py <path-to-caelestia-checkout>
+Usage: python tools/gen_exports.py <path-to-caelestia-checkout> [report-file]
 
 What it does (Windows-only effect, Linux build unchanged because the macros expand to nothing there):
  1. Finds each qml_module(caelestia-NAME ...) in plugin/src/Caelestia/**/CMakeLists.txt and maps its directory to NAME.
@@ -51,27 +51,55 @@ for k in keys:
 
 # --- headers ---
 DECL = re.compile(r"^(class|struct)(\s+)([A-Za-z_]\w*)(\s+final)?\s*(:|\{|$)")
+# class/struct inside a (backslash-continued) #define body; names may contain ## pasting
+MDECL = re.compile(r"^(\s*)(class|struct)(\s+)([A-Za-z_][\w#]*)(\s+final)?\s*(:|\{|\\|$)")
+LOOSE = re.compile(r"\b(class|struct)\s+[A-Za-z_]")
 total = 0
 report = []
+unmarked = []
+macro_defs = []
+watch = re.compile(r"ConfigSingleton|TokensSingleton|FontConfig|FontStyle")
+watch_hits = []
 for d, target in dir_to_target.items():
     key = lib_key(target)
     macro = f"CAELESTIA_{key}_API"
-    # headers directly in this dir (subdirs with their own qml_module are handled by their own entry)
     for h in sorted(d.glob("*.hpp")) + sorted(d.glob("*.h")):
         text = h.read_text(encoding="utf-8", errors="replace")
+        lines = text.split("\n")
         out, changed, prev = [], 0, ""
-        for line in text.split("\n"):
-            m = DECL.match(line)
-            if m and macro not in line and not prev.lstrip().startswith("template"):
-                line = f"{m.group(1)}{m.group(2)}{macro} {line[m.end(2):]}"
-                changed += 1
-            out.append(line)
-            if line.strip():
-                prev = line
+        in_define, define_marked, define_buf = False, False, []
+        for ln, line in enumerate(lines, 1):
+            stripped = line.rstrip("\r")
+            starts_define = stripped.lstrip().startswith("#define")
+            if starts_define:
+                in_define, define_marked, define_buf = True, False, []
+            new_line = line
+            if in_define:
+                define_buf.append(stripped)
+                m = MDECL.match(stripped)
+                if m and not define_marked and macro not in stripped and "friend" not in stripped:
+                    new_line = f"{m.group(1)}{m.group(2)}{m.group(3)}{macro} {stripped[m.end(3):]}" + line[len(stripped):]
+                    define_marked = True
+                    changed += 1
+            else:
+                m = DECL.match(line)
+                if m and macro not in line and not prev.lstrip().startswith("template"):
+                    new_line = f"{m.group(1)}{m.group(2)}{macro} {line[m.end(2):]}"
+                    changed += 1
+                elif LOOSE.search(stripped) and macro not in stripped and not stripped.lstrip().startswith(("//", "friend", "enum", "template", "#")) and not stripped.rstrip().endswith(";"):
+                    unmarked.append(f"{h.relative_to(root)}:{ln}: {stripped.strip()}")
+            if watch.search(stripped) and len(watch_hits) < 120:
+                watch_hits.append(f"{h.relative_to(root)}:{ln}: {stripped.strip()}")
+            out.append(new_line)
+            if in_define and not stripped.rstrip().endswith("\\"):
+                if any(re.search(r"\b(class|struct)\b", b) for b in define_buf):
+                    macro_defs.append(f"--- {h.relative_to(root)} (define ending line {ln}) ---\n" + "\n".join(define_buf))
+                in_define = False
+            if stripped.strip():
+                prev = stripped
         if changed:
             body = "\n".join(out)
             if "caelestia_export.h" not in body:
-                # include after #pragma once if present, else at top
                 if re.search(r"^#pragma once\s*$", body, re.M):
                     body = re.sub(r"^(#pragma once\s*)$", r"\1\n#include <caelestia_export.h>", body, count=1, flags=re.M)
                 else:
@@ -116,3 +144,11 @@ endif()
 print("libraries:", ", ".join(f"{d.relative_to(src) if d != src else '.'}={t}" for d, t in sorted(dir_to_target.items(), key=lambda x: str(x[0]))))
 print("\n".join(report))
 print(f"marked {total} type definitions")
+if len(sys.argv) > 2:
+    rp = pathlib.Path(sys.argv[2])
+    rp.parent.mkdir(parents=True, exist_ok=True)
+    with rp.open("w", encoding="utf-8") as f:
+        f.write("== marked ==\n" + "\n".join(report) + "\n\n")
+        f.write("== class-like lines NOT marked (check these if link errors remain) ==\n" + "\n".join(unmarked[:400]) + "\n\n")
+        f.write("== #define blocks that contain class/struct ==\n" + "\n\n".join(macro_defs[:60]) + "\n\n")
+        f.write("== lines mentioning ConfigSingleton/TokensSingleton/FontConfig/FontStyle (first 120) ==\n" + "\n".join(watch_hits) + "\n")
