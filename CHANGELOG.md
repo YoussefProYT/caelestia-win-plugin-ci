@@ -42,4 +42,4 @@
   ```
 
 - Fix: use `QStringLiteral("N/A")` and explicit `QPair<QString, QString>` construction in the Qalculator Windows stub.
-- Commit: pending
+- Commit: aa61ce84d1ee6c4bc742e71b825fce532012418c
