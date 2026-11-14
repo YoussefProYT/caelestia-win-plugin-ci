@@ -1,11 +1,7 @@
 diff --git a/plugin/cmake/qml-module.cmake b/plugin/cmake/qml-module.cmake
-index 0000000..0000000 100644
 --- a/plugin/cmake/qml-module.cmake
 +++ b/plugin/cmake/qml-module.cmake
-@@ -13,7 +13,11 @@ function(qml_module arg_TARGET)
-         DEPENDENCIES ${arg_DEPENDENCIES}
-         IMPORTS ${arg_IMPORTS}
-         OPTIONAL_IMPORTS ${arg_OPTIONAL_IMPORTS}
+@@ -16,6 +16,12 @@
          DEFAULT_IMPORTS ${arg_DEFAULT_IMPORTS}
      )
  

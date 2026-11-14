@@ -77,3 +77,5 @@
 
 - Follow-up: corrected the patch hunk context after local `git apply --check` reported a malformed patch.
 - Follow-up commit: 0abe038601b99c95cf408b881e9b771bcadaff33
+- Final patch regeneration: generated patch 06 from the exact source file and revalidated ordered application through patch 06.
+- Final patch regeneration commit: pending
