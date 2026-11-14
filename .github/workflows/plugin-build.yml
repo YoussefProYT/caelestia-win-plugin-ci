@@ -63,7 +63,7 @@ jobs:
           git -C upstream/caelestia submodule update --init --recursive 2>&1 | Tee-Object -Append $log
           $head = (git -C upstream/caelestia rev-parse HEAD)
           if ($head -ne $sha) { throw "Caelestia revision mismatch: $head" }
-          foreach ($p in '01-cmake','02-headers','03-windows-stubs','04-cmake-msvc','05-qalculator-moc','06-windows-export-symbols') {
+          foreach ($p in '01-cmake','02-headers','03-windows-stubs','04-cmake-msvc','05-qalculator-moc') {
             $f = (Resolve-Path "patches/$p.patch").Path
             git -C upstream/caelestia apply --check --ignore-whitespace $f 2>&1 | Tee-Object -Append $log
             if ($LASTEXITCODE -ne 0) { throw "patch $p does not apply" }
@@ -72,6 +72,13 @@ jobs:
             "applied $p" | Tee-Object -Append $log
           }
           git -C upstream/caelestia status --short 2>&1 | Tee-Object -Append $log
+      - name: Generate Windows DLL export macros
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          python tools/gen_exports.py upstream/caelestia 2>&1 | Tee-Object out/logs/gen-exports.log
+          if ($LASTEXITCODE -ne 0) { throw "gen_exports.py failed (see gen-exports.log)" }
+          git -C upstream/caelestia diff --stat 2>&1 | Tee-Object -Append out/logs/gen-exports.log
       - name: Dump upstream build files and scan headers (diagnostics)
         if: always()
         shell: pwsh
@@ -110,7 +117,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
-          cmake --build $env:BUILD_DIR 2>&1 | Tee-Object out/logs/build.log
+          cmake --build $env:BUILD_DIR -- -k 0 2>&1 | Tee-Object out/logs/build.log
           if ($LASTEXITCODE -ne 0) { throw "Plugin build failed (see build.log)" }
       - name: Collect QML module and dependency listing (L2)
         if: always()

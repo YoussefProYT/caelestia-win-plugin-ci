@@ -79,3 +79,9 @@
 - Follow-up commit: 0abe038601b99c95cf408b881e9b771bcadaff33
 - Final patch regeneration: generated patch 06 from the exact source file and revalidated ordered application through patch 06.
 - Final patch regeneration commit: f97beec016710d44d971d10e9be8e904c935c6ef
+
+## Round 6 (planned, not yet run)
+
+- Reason: WINDOWS_EXPORT_ALL_SYMBOLS (patch 06) most likely cannot export data symbols such as `staticMetaObject`, which the round-5 link errors include. Patch 06 is moved to `patches/unused/`.
+- Change: new CI step runs `tools/gen_exports.py` after patching. It generates `plugin/include/caelestia_export.h` with per-library `CAELESTIA_<NAME>_API` macros, marks top-level class/struct definitions in each library's headers, and defines `CAELESTIA_BUILD_<NAME>` for each shared `caelestia-*` target. Build now uses `-- -k 0` to list all errors in one run.
+- Status: untested; expect follow-up rounds (e.g. non-copyable exported types, macro-generated classes not matched by the script).
