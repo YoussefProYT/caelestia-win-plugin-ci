@@ -76,4 +76,4 @@
 - Commit: 781af8638935859e32b460035076020a79bf8bb3
 
 - Follow-up: corrected the patch hunk context after local `git apply --check` reported a malformed patch.
-- Follow-up commit: pending
+- Follow-up commit: 0abe038601b99c95cf408b881e9b771bcadaff33
