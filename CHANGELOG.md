@@ -74,3 +74,6 @@
 
 - Fix: add `06-windows-export-symbols.patch`, enabling `WINDOWS_EXPORT_ALL_SYMBOLS` for each backing QML module target when using MSVC.
 - Commit: 781af8638935859e32b460035076020a79bf8bb3
+
+- Follow-up: corrected the patch hunk context after local `git apply --check` reported a malformed patch.
+- Follow-up commit: pending
