@@ -63,7 +63,7 @@ jobs:
           git -C upstream/caelestia submodule update --init --recursive 2>&1 | Tee-Object -Append $log
           $head = (git -C upstream/caelestia rev-parse HEAD)
           if ($head -ne $sha) { throw "Caelestia revision mismatch: $head" }
-          foreach ($p in '01-cmake','02-headers','03-windows-stubs','04-cmake-msvc') {
+          foreach ($p in '01-cmake','02-headers','03-windows-stubs','04-cmake-msvc','05-qalculator-moc') {
             $f = (Resolve-Path "patches/$p.patch").Path
             git -C upstream/caelestia apply --check --ignore-whitespace $f 2>&1 | Tee-Object -Append $log
             if ($LASTEXITCODE -ne 0) { throw "patch $p does not apply" }

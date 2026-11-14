@@ -1,0 +1,12 @@
+diff --git a/plugin/src/Caelestia/CMakeLists.txt b/plugin/src/Caelestia/CMakeLists.txt
+index 0000000..0000000 100644
+--- a/plugin/src/Caelestia/CMakeLists.txt
++++ b/plugin/src/Caelestia/CMakeLists.txt
+@@ -2,6 +2,7 @@ qml_module(caelestia-core
+     URI Caelestia
+     INCLUDE_PREFIX core
+     SOURCES
++        qalculator.hpp
+         cutils.cpp
+         $<$<BOOL:${CAELESTIA_WITH_QALCULATE}>:qalculator.cpp>
+         $<$<NOT:$<BOOL:${CAELESTIA_WITH_QALCULATE}>>:windows/qalculator.cpp>

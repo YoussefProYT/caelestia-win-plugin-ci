@@ -43,3 +43,18 @@
 
 - Fix: use `QStringLiteral("N/A")` and explicit `QPair<QString, QString>` construction in the Qalculator Windows stub.
 - Commit: aa61ce84d1ee6c4bc742e71b825fce532012418c
+
+## Round 4
+
+- Run: `43531216252`
+- Failing step: `Build plugin` (link)
+- Error excerpt:
+
+  ```text
+  qalculator.cpp.obj : error LNK2001: unresolved external symbol Qalculator::metaObject
+  qalculator.cpp.obj : error LNK2019: unresolved external symbol Qalculator::resultChanged
+  lib\\caelestia-core.dll : fatal error LNK1120: 6 unresolved externals
+  ```
+
+- Fix: add `05-qalculator-moc.patch`, listing `qalculator.hpp` explicitly in the `caelestia-core` QML module sources so AUTOMOC generates the Qalculator meta-object code.
+- Commit: pending
