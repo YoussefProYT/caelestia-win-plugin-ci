@@ -282,13 +282,13 @@ index 00000000..2974ac3a
 +namespace caelestia::shell {
 +QMutex Qalculator::s_calculatorMutex;
 +Qalculator::Qalculator(QObject* parent) : QObject(parent) {}
-+QString Qalculator::eval(const QString&, bool) { return u"N/A"; }
++QString Qalculator::eval(const QString&, bool) { return QStringLiteral("N/A"); }
 +void Qalculator::evalAsync(const QString&) { clearResult(); }
 +QString Qalculator::result() const { return m_result; }
 +QString Qalculator::rawResult() const { return m_rawResult; }
 +bool Qalculator::busy() const { return m_busy; }
-+QPair<QString, QString> Qalculator::evaluate(const QString&) { return {u"N/A", u"N/A"}; }
++QPair<QString, QString> Qalculator::evaluate(const QString&) { return QPair<QString, QString>(QStringLiteral("N/A"), QStringLiteral("N/A")); }
 +void Qalculator::applyResult(quint64, const QPair<QString, QString>& result) { m_result = result.first; m_rawResult = result.second; emit resultChanged(); emit rawResultChanged(); }
-+void Qalculator::clearResult() { applyResult(++m_generation, {u"N/A", u"N/A"}); }
++void Qalculator::clearResult() { const QPair<QString, QString> result(QStringLiteral("N/A"), QStringLiteral("N/A")); applyResult(++m_generation, result); }
 +void Qalculator::setBusy(bool busy) { if (m_busy != busy) { m_busy = busy; emit busyChanged(); } }
 +} // namespace caelestia::shell

@@ -28,3 +28,18 @@
 
 - Fix: add `04-cmake-msvc.patch`, keeping the existing GCC warning flags for non-MSVC compilers and using `/W4` for MSVC. Update the workflow to apply patch 04.
 - Commit: 27ef73c873776584fd4810190614256f137ce06b
+
+## Round 3
+
+- Run: `43530807981`
+- Failing step: `Build plugin`
+- Error excerpt:
+
+  ```text
+  windows/qalculator.cpp(6): error C2440: 'return': cannot convert from 'const char16_t [4]' to 'QString'
+  windows/qalculator.cpp(11): error C3445: copy-list-initialization of 'std::pair<QString,QString>' cannot use an explicit constructor
+  windows/qalculator.cpp(13): error C2664: cannot convert argument 2 from 'initializer list' to 'const std::pair<QString,QString> &'
+  ```
+
+- Fix: use `QStringLiteral("N/A")` and explicit `QPair<QString, QString>` construction in the Qalculator Windows stub.
+- Commit: pending
