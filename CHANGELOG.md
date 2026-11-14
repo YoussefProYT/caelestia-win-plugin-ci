@@ -57,4 +57,4 @@
   ```
 
 - Fix: add `05-qalculator-moc.patch`, listing `qalculator.hpp` explicitly in the `caelestia-core` QML module sources so AUTOMOC generates the Qalculator meta-object code.
-- Commit: pending
+- Commit: 0613387e2f3f478e85d7441b120f067a2d3eb0c9
