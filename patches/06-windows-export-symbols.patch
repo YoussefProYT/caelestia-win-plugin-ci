@@ -1,0 +1,15 @@
+diff --git a/plugin/cmake/qml-module.cmake b/plugin/cmake/qml-module.cmake
+index 0000000..0000000 100644
+--- a/plugin/cmake/qml-module.cmake
++++ b/plugin/cmake/qml-module.cmake
+@@ -9,6 +9,10 @@ function(qml_module arg_TARGET)
+         DEFAULT_IMPORTS ${arg_DEFAULT_IMPORTS}
+     )
++    if(MSVC)
++        set_target_properties(${arg_TARGET} PROPERTIES
++            WINDOWS_EXPORT_ALL_SYMBOLS ON
++        )
++    endif()
+     qt_query_qml_module(${arg_TARGET}
+         URI module_uri
+         PLUGIN_TARGET module_plugin_target

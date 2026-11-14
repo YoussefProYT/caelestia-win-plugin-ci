@@ -58,3 +58,19 @@
 
 - Fix: add `05-qalculator-moc.patch`, listing `qalculator.hpp` explicitly in the `caelestia-core` QML module sources so AUTOMOC generates the Qalculator meta-object code.
 - Commit: 0613387e2f3f478e85d7441b120f067a2d3eb0c9
+
+## Round 5
+
+- Run: `43531670512`
+- Failing step: `Build plugin` (link)
+- Error excerpt:
+
+  ```text
+  CircularBuffer::staticMetaObject: unresolved external symbol
+  Settings::Node::setValue: unresolved external symbol
+  lib\\caelestia-components.dll : fatal error LNK1120: 4 unresolved externals
+  lib\\caelestia-state.dll : fatal error LNK1120: 23 unresolved externals
+  ```
+
+- Fix: add `06-windows-export-symbols.patch`, enabling `WINDOWS_EXPORT_ALL_SYMBOLS` for each backing QML module target when using MSVC.
+- Commit: pending
