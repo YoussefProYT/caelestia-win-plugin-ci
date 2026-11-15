@@ -93,3 +93,12 @@
 - Remaining link errors (2 libs, same cause): caelestia-i18n and caelestia-shaders miss `config::FontConfig*::staticMetaObject`, `config::FontStyle*::staticMetaObject`, `ConfigSingleton::instance`, `TokensSingleton::instance`. These types are not marked by the script (probably macro-generated in Config headers).
 - Fixes in round 7: stubs fixed in patch 03; gen_exports.py now also marks the first class/struct inside `#define` bodies and writes `out/logs/gen-exports-report.txt` (unmarked class-like lines, macro definitions containing class/struct, lines mentioning the failing names).
 - Note: `spirv-opt` is not installed, so qsb prints "Failed to run spirv-opt" and shaders are built unoptimised. Not fatal.
+
+## Round 7 result (v3: macro-aware gen_exports.py)
+
+- Linked OK now: caelestia-core, settings, models, components, blobs, images, multimedia and their plugin DLLs.
+- Two compile failures remain (moc files of caelestia-state and caelestia-config): `C2491 definition of dllimport static data member not allowed` / `C2127` on `staticMetaObject` of macro-generated types: PersistentState, RuntimeState, EntryList, IconRuleList, BarTrayIconSubList, GeneralIdleTimeoutList, GeneralBatteryWarnList, LauncherActionList, PlayerAliasList, UtilitiesVpnProviderList, ConfigSingleton, TokensSingleton.
+- Cause (our bug in v3): export macro inserted into `#define` bodies used the macro of the library that DEFINES the macro (Settings), so in State/Config it expanded to dllimport.
+- Fix (v4): macro bodies use `CAELESTIA_LOCAL_API`; every header of a library does push_macro / `#define CAELESTIA_LOCAL_API CAELESTIA_<LIB>_API` at the top and pop_macro at the end, so the expansion site decides import vs export. Checked with the preprocessor on a synthetic example (Settings-defined macro invoked in State, consumer and Settings compile, Linux): correct in all four cases. Not yet tried on the real sources.
+- CI: new step writes `out/logs/errors-only.log` (only `error C`, `error LNK`, `FAILED:` lines, paths shortened) so only that file needs to be pasted.
+- Not reached yet because dependents of config/state were blocked: caelestia-i18n, shaders, services (stub fixes of patch 03 still unverified).

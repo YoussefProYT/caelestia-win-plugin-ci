@@ -119,6 +119,16 @@ jobs:
           $ErrorActionPreference = 'Continue'
           cmake --build $env:BUILD_DIR -- -k 0 2>&1 | Tee-Object out/logs/build.log
           if ($LASTEXITCODE -ne 0) { throw "Plugin build failed (see build.log)" }
+      - name: Extract errors only (short log to paste)
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path out/logs/build.log) {
+            Select-String -Path out/logs/build.log -Pattern 'error C\d+|error LNK\d+|fatal error|FAILED:|ninja: build stopped' |
+              ForEach-Object { ($_.Line.Trim() -replace '[A-Za-z]:\\a\\[^\\]+\\[^\\]+\\','') } |
+              Select-Object -Unique |
+              Out-File -Encoding utf8 out/logs/errors-only.log
+          }
       - name: Collect QML module and dependency listing (L2)
         if: always()
         shell: pwsh
